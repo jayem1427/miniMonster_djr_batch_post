@@ -201,9 +201,12 @@ class PostDialog(PostDialogLayout):
         if not Programs.Current.machineHasAAxis:
             needAAxisRotation, setups = Setups.AAxisRotationRequired()
             if needAAxisRotation:
-                Utils.log(f'PostDialog: Machine {Programs.Current.MachineName} does not support A axis but setups {setups} require A axis rotation.', adsk.core.LogLevels.WarningLogLevel)
+                Utils.log(f'PostDialog: Machine {Programs.Current.machineName} does not support A axis but setups {setups} require A axis rotation.', adsk.core.LogLevels.WarningLogLevel)
                 msg = '<i><u>Warning:</u></i><p>'
-                msg += f"The selected machine '{Programs.Current.MachineName}' does not support A axis rotation, but the following setups require A axis rotation:<p>"
+                if Programs.Current.hasMachine:
+                    msg += f"The selected machine '{Programs.Current.machineName}' does not support A axis rotation, but the following setups require A axis rotation:<p>"
+                else:
+                    msg += "No machine configuration is attached to the NC Program, but the following setups require A axis rotation:<p>"
                 for setupName, angle in setups:
                     msg += f"{setupName} ({angle}°)<p>"
                 msg += "Using 4th axis rotation while the machine doesn't support it may result in unexpected results, including damage to property and person.<p>"
@@ -238,7 +241,7 @@ class PostDialog(PostDialogLayout):
         inputs = args.inputs
         
         args.areInputsValid = Programs.Current is not None \
-            and Programs.Current.hasMachine \
+            and Programs.Current.canProcess \
             and Setups.hasSelected \
             and all(not setup.hasError for setup in Setups.selected) \
             and (Programs.Current.machineHasAAxis or not Setups.AAxisRotationRequired()[0])

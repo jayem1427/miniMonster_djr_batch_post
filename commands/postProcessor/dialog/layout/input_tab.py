@@ -54,8 +54,12 @@ class InputTab(PostDialogConstants):
 
         def setMachineValue(programDropdown):
             machineText = programDropdown.parentCommand.commandInputs.itemById(cls._MACHINE_ID)
-            machineText.isEnabled =  Programs.Current is not None and Programs.Current.hasMachine
-            machineText.value = Programs.Current.machineName if machineText.isEnabled else Strings('<Select a program with a machine configuration>')
+            if Programs.Current is None:
+                machineText.isEnabled = False
+                machineText.value = Strings('<Select a program>')
+            else:
+                machineText.isEnabled = True
+                machineText.value = Programs.Current.machineName
 
         EventRegistry.register(programDropdown, setMachineValue)  
 
@@ -225,7 +229,7 @@ class InputTab(PostDialogConstants):
         rotateAAxisCheckbox: adsk.core.BoolValueCommandInput = inputs.itemById(cls._ROTATE_A_AXIS_ID)
         rotateAAxisCheckbox.isEnabled = False if Programs.Current is None else Programs.Current.machineHasAAxis
 
-        validProgram = Programs.Current is not None and Programs.Current.hasMachine
+        validProgram = Programs.Current is not None and Programs.Current.canProcess
 
         firstSetup: Setup = None
         for setup in Setups:

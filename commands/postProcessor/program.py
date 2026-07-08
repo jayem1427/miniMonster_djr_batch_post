@@ -67,6 +67,11 @@ class Program():
         return self._program.machine is not None
 
     @property
+    def canProcess(self) -> bool:
+        """Returns whether the NCProgram has the minimum configuration to post."""
+        return self.hasPostProcessor
+
+    @property
     def machineName(self) -> str:
         """Returns the machine of the NCProgram."""
         return self._program.machine.model if self.hasMachine else Strings("<no machine selected>")
