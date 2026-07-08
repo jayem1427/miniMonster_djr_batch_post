@@ -27,14 +27,13 @@ def test_wait_loop_does_not_shadow_time_module(tmp_path: Path):
     retries = int(settings_mod.Settings(settings_mod.Settings.POST_RETRIES) or 3)
 
     target = tmp_path / "late.ngc"
-    created = {"done": False}
 
     def create_later():
         time_module.sleep(0.05)
         target.write_text("%\nM30\n", encoding="utf-8")
-        created["done"] = True
 
-    threading.Thread(target=create_later, daemon=True).start()
+    worker = threading.Thread(target=create_later, daemon=True)
+    worker.start()
 
     loops = 0
     max_loops = max(retries * 3, 10)
@@ -43,8 +42,8 @@ def test_wait_loop_does_not_shadow_time_module(tmp_path: Path):
         # This must be the time *module*, not a float named time.
         time_module.sleep(min(delay * loops, 0.05))
 
+    worker.join(timeout=1.0)
     assert target.exists()
-    assert created["done"]
 
 
 def test_settings_path_exists_is_called(tmp_path: Path, monkeypatch):
