@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional
+import time
 import uuid
 
 import adsk.cam
@@ -7,6 +8,7 @@ import adsk.cam
 from .....lib.fusionAddInUtils.general_utils import Utils
 
 from ...parameters import Parameters
+from ...settings.settings import Settings
 from ...strings import Strings
 
 from .parser import OperationParser
@@ -127,15 +129,18 @@ class Operation(OperationParser, OperationHeader, OperationBody, OperationTail):
         if not Programs.Current.PostProcess(list(self._operationsDict.values())):
             raise Exception(f"Operation {self.name} post processing failed.")
         
-        time = 0.1
+        delay = float(Settings(Settings.INITIAL_DELAY) or 0.1)
+        retries = int(Settings(Settings.POST_RETRIES) or 3)
+        # Allow a few more loops than POST_RETRIES so short delays still
+        # cover slow Fusion file flushes (historically ~5.5s with delay=0.1).
+        maxLoops = max(retries * 3, 10)
         loops = 0
-        # Wait maximally 5.5 seconds for the file to be created, as 
-        # sometimes it is not immediately available after post 
-        # processing
-        while not self._tempFilePath.exists() and loops < 10: 
+        # Wait for the file to be created; sometimes it is not immediately
+        # available after post processing.
+        while not self._tempFilePath.exists() and loops < maxLoops:
             loops += 1
-            time.sleep(time * loops)
-        if loops >= 10 or not self._tempFilePath.exists():
+            time.sleep(delay * loops)
+        if loops >= maxLoops or not self._tempFilePath.exists():
             raise Exception(f"Operation {self.name} post processing failed: output file was not created.")
 
         self._parseFile(self._tempFilePath)

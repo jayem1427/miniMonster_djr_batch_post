@@ -25,15 +25,19 @@ class OperationBody(Line):
                     if row + 1 in self._rapidsAnalysis: # Add rapids comments if this line is the start of a rapid move
                         rapidsEnds = self._rapidsAnalysis[row + 1]
                         lineMatch = OperationBody._PARSE_LINE_RE.match(line)
-                        if lineMatch:
-                            if lineMatch.group("G") is not None:
-                                if int(lineMatch.group("G")) == 1:
-                                    gStart, gEnd = lineMatch.span("G")
-                                    line = (line[:gStart] + "0" + line[gEnd:]).rstrip() + " (Rapid movement start)\n" # Change G1 to G0 for rapid move comment line
-                            else:
-                                self._lineNumber = self._writeLine(fileHandler, f"G0 {line.rstrip()} (Rapid movement start)", self._lineNumber)
-                                readNextLine = True
-                                continue
+                        if lineMatch and lineMatch.group("G") is not None:
+                            if int(float(lineMatch.group("G"))) == 1:
+                                gStart, gEnd = lineMatch.span("G")
+                                line = (line[:gStart] + "0" + line[gEnd:]).rstrip() + " (Rapid movement start)\n" # Change G1 to G0 for rapid move comment line
+                        elif lineMatch:
+                            self._lineNumber = self._writeLine(fileHandler, f"G0 {line.rstrip()} (Rapid movement start)", self._lineNumber)
+                            readNextLine = True
+                            continue
+                        else:
+                            # Regex did not match (unexpected format) — still force rapid mode.
+                            self._lineNumber = self._writeLine(fileHandler, f"G0 {line.rstrip()} (Rapid movement start)", self._lineNumber)
+                            readNextLine = True
+                            continue
                     if row + 1 == rapidsEnds:
                         rapidsEnds = 0
                         self._lineNumber = self._write(fileHandler, line, self._lineNumber)

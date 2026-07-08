@@ -2,6 +2,7 @@ from pathlib import Path
 
 from .rapidsParser import RapidsParser
 
+from ...gcode_helpers import coalesce_min_distance, code_in_list
 from ...line import Line
 from ...settings.settings import Settings
 
@@ -35,7 +36,7 @@ class OperationParser(Line):
         #endregion
 
         if Settings(Settings.RESTORE_RAPID_MOVES):
-            minDist = Settings(Settings.RAPID_MOVES_MINIMUM_DISTANCE) | 20
+            minDist = coalesce_min_distance(Settings(Settings.RAPID_MOVES_MINIMUM_DISTANCE), 20)
             self._rapidsAnalysis = {seg["startLine"]: seg["endLine"]
                     for seg in RapidsParser().analyze(RapidsParser().parseFile(filePath), minDist = minDist)
                     if seg.get("isValid") and "startLine" in seg and "endLine" in seg}
@@ -73,7 +74,7 @@ class OperationParser(Line):
                 if headerMatch.group("G") is not None:
                     # Found a g-code, check if it is in the list of
                     # header end codes
-                    if f"G{headerMatch.group('G')}" in Settings.Get(Settings.HEADER_END_CODES):
+                    if code_in_list(f"G{headerMatch.group('G')}", Settings.Get(Settings.HEADER_END_CODES)):
                         # Found the end of the header
                         self._headerEndLine = lineNumber
                         return (True, True)
@@ -84,7 +85,7 @@ class OperationParser(Line):
                 if headerMatch.group("M") is not None:
                     # Found an m-code, check if it is in the list of
                     # header end codes
-                    if f"M{headerMatch.group('M')}" in Settings.Get(Settings.HEADER_END_CODES):
+                    if code_in_list(f"M{headerMatch.group('M')}", Settings.Get(Settings.HEADER_END_CODES)):
                         # Found the end of the header
                         self._headerEndLine = lineNumber
                         return (True, True)
@@ -128,7 +129,7 @@ class OperationParser(Line):
                 self._bodyStartLine = lineNumber
             elif bodyMatch.group("M") is not None:
                 mCode = int(bodyMatch.group("M"))
-                if f"M{mCode}" in Settings.Get(Settings.END_CODES):
+                if code_in_list(f"M{mCode}", Settings.Get(Settings.END_CODES)):
                     # found tail start
                     self._tailStartLine = lineNumber
                     return True # File analysis complete

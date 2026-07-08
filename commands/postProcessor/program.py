@@ -88,7 +88,8 @@ class Program():
 
     @property
     def machineATCSlots(self) -> int:
-        return self._program
+        """Returns the number of ATC slots (alias of machineToolSlots)."""
+        return self.machineToolSlots
 
     @property
     def machineHasAAxis(self):
@@ -151,7 +152,7 @@ class Program():
 
         try:
             if initialPath.exists() and not initialPath.is_dir():
-                return # Need to notify the user about this.
+                raise NotADirectoryError(f"Output path exists but is not a folder: {initialPath}")
 
             if Settings(Settings.CLEAR_FOLDER) and initialPath.exists() and initialPath.is_dir():
                 for child in initialPath.iterdir():
@@ -160,8 +161,8 @@ class Program():
                             shutil.rmtree(child)
                         else:
                             child.unlink()
-                    except Exception:
-                        return # File/folder could not be deleted, likely due to permissions. Need to notify the user about this.
+                    except Exception as exc:
+                        raise PermissionError(f"Could not clear output folder item: {child}") from exc
             
             # Setting the base parameters for the output.
             Setups.SetFileExtension(self._program.postConfiguration.extension)
@@ -205,10 +206,14 @@ class Program():
 
     def SetOutputFolder(self, folder: Path):
         """Convenience method to set and verify output folder"""
+        from .validation_helpers import unc_output_folder_value
+
         self.Parameters.Set(Parameters.OUTPUT_FOLDER, folder.as_posix())
         result = self.GetOutputFolder()
-        if result != folder and folder[0:2] == "\\\\":
-            self.Parameters.Set(Parameters.OUTPUT_FOLDER, "\\\\" + folder)    # double up leading "\"
+        if result != folder:
+            unc = unc_output_folder_value(folder)
+            if unc is not None:
+                self.Parameters.Set(Parameters.OUTPUT_FOLDER, unc)
         return None
 
     def GetOutputFolder(self) -> Path:

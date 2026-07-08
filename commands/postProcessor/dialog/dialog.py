@@ -240,11 +240,19 @@ class PostDialog(PostDialogLayout):
 
         inputs = args.inputs
         
-        args.areInputsValid = Programs.Current is not None \
-            and Programs.Current.canProcess \
-            and Setups.hasSelected \
-            and all(not setup.hasError for setup in Setups.selected) \
-            and (Programs.Current.machineHasAAxis or not Setups.AAxisRotationRequired()[0])
+        from ..validation_helpers import are_process_inputs_valid
+
+        rotateAAxis = bool(Settings(Settings.ROTATE_A_AXIS))
+        aAxisRequired = Setups.AAxisRotationRequired()[0]
+        args.areInputsValid = are_process_inputs_valid(
+            has_program=Programs.Current is not None,
+            can_process=Programs.Current.canProcess if Programs.Current is not None else False,
+            has_selected_setups=Setups.hasSelected,
+            selected_setups_ok=all(not setup.hasError for setup in Setups.selected),
+            rotate_a_axis_enabled=rotateAAxis,
+            machine_has_a_axis=Programs.Current.machineHasAAxis if Programs.Current is not None else False,
+            a_axis_rotation_required=aAxisRequired,
+        )
 
         # TODO: Set up so that the Process button is only enabled when things are set up properly
 

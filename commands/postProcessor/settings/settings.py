@@ -84,7 +84,7 @@ class Settings(Constants, metaclass=_SettingsMeta):
             # Haven't read the settings file yet
             file = None
             path = cls._getPath()
-            if path.exists and path.is_file():
+            if path.exists() and path.is_file():
                     with open(path) as file:
                         cls._default = json.load(file)
                     if cls._default[Constants.VERSION] != config.SETTINGS_VERSION:

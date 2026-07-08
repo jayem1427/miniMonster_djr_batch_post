@@ -91,6 +91,16 @@ git commit -m "Describe your changes"
 git push -u origin dev
 ```
 
+### Tests
+
+Unit tests cover pure helpers and parsers without Fusion installed:
+
+```bash
+pip install pytest
+python3 -m pytest tests/ -v
+```
+
+The suite stubs the Autodesk `adsk` API and documents historical bugs (substring M-code matching, bitwise `|` defaults, `time` shadowing, etc.) so they cannot regress silently.
 ## Project Structure (key files)
 - `Batch Post.py` – main add-in entry point
 - `config.py` – global configuration
