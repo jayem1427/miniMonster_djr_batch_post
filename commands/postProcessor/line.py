@@ -16,6 +16,7 @@ class Line():
         re.IGNORECASE | re.DOTALL)
 
     _PARSE_LINE_RE: Final = re.compile(r""
+            r"(?:N[0-9]+\s*)?"  # optional line number (must not block G/X matching)
             r"(G(?P<G>[0-9]+(\.[0-9]*)?)[^XYZFA]*)?"
             r"(?P<XY>((X-?[0-9]+(\.[0-9]*)?)[^XYZFA]*)?((Y-?[0-9]+(\.[0-9]*)?)[^XYZFA]*)?)"
             r"(A(?P<A>-?[0-9]+(\.[0-9]*)?)[^XYZFA]*)?"

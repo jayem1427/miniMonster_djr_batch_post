@@ -514,7 +514,8 @@ class RapidsParser:
             totalXYDist = float(segment.get(cls.KEY_TOTAL_XY_DIST, 0.0) or 0.0)
 
             zDist = abs(dZUp) + abs(dZDown)
-            effectiveDist = totalXYDist + zDist
+            # Use max (not sum) so moderate XY+Z retracts are not over-rejected.
+            effectiveDist = max(totalXYDist, zDist)
 
             segment[cls.KEY_Z_DIST] = zDist
             segment[cls.KEY_EFFECTIVE_DIST] = effectiveDist

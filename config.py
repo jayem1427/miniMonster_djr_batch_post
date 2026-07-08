@@ -15,6 +15,6 @@ DEBUG = True
 # that need a unique name. It's also recommended to use a company name as 
 # part of the ID to better ensure the ID is unique.
 ADDIN_NAME = os.path.basename(os.path.dirname(__file__))
-COMPANY_NAME = 'Makera Community'
+COMPANY_NAME = 'BatchPost'
 
 PLUGIN_VERSION = '0.9.0'
