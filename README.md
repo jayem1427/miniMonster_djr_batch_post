@@ -59,9 +59,9 @@ Follow the generic instructions to install add-ins into Fusion 360:
 You should now se a new icon in the Manufacture workspace, next to the Setup sheet under Milling.
 
 ## Usage
-As this utility isn't a post processor, the first you need is at least one NC Program. To create one you use the regular post process command in Fusion. The reason for this is that you might need to make settings for the specific post processor you're using (it can be used with other post processors than the Carvera Community post processor) and there is no need to duplicate that user interface as it is beyond the scope of this plugin. It is important that you select a machine configuration when you create it by checking the `Use machine configuration` checkbox (1) and selects the machine from your machine library in the drop down named `Machine` (2).
+As this utility isn't a post processor, the first you need is at least one NC Program. To create one you use the regular post process command in Fusion. The reason for this is that you might need to make settings for the specific post processor you're using (it can be used with other post processors than the Carvera Community post processor) and there is no need to duplicate that user interface as it is beyond the scope of this plugin.
 
-It is important that the machine is the one that you will use, as the plugin will extract information from the selected machine. 
+You must select a **post processor** on the NC Program. A **machine configuration** is optional: if you skip it, the plugin posts using your post-processor settings (for example `linuxcnc-djr.cps` with M600, 4th axis, and G93). Attach a machine only if you need **A-axis rotation between setups** or **ATC slot assignment** in the Tools tab. 
 
 <img src="resources/readme/usage/machine_config.png">
 
@@ -76,7 +76,7 @@ These settings will be saved in the document itself, so if you're sharing your d
 
 The first step you need to do is to select your NC Program that contains the information for the post processor to work. In the drop down `NC Program` (2) you will find the NC Programs that is in the current document that isn't suppressed and doesn't have an error. Select the one that you want to use, normally you might just have one after the first step above.
 
-As a validation you will see the `Machine` selected (3) and the `Post Processor` (4) that will be used when running the plugin later. 
+As a validation you will see the `Machine` (3, optional) and the `Post Processor` (4, required) that will be used when running the plugin later. 
 
 There is a table (5) with the Setups in the current document and if you haven't selected any specific setups in the document browser they will be selected automatically in order from top to bottom, which is the order that they will be processed later. This is important as the rotation of the A-axis depends on the order. If you have a machine that isn't equipped with an A-axis only the Setups where the Work Coordinate System (WCS) that is the same as the first Setup will be selected. The reason why setups aren't selectable unless the WCS is the same is that the g-code that is produced by the post-processor will only reference the WCS origin and the direction of the x-axis, so if they aren't the same the resulting file will have g-code that will not work as the coordinate system of the g-code will differ between setups. So some of the setups might not be selectable (6) and needs to be addressed before it can be used.
 
@@ -110,7 +110,7 @@ The two last blocks is used to control the plugin behaviour, `G-codes that mark 
 
 <img src="resources/readme/usage/output_tab.png">
 
-The `Output Options` tab is where the core behaviour of the plugin is setup. The obvious one is `Output folder` (1) that is where the result will be written. To the right of it there is a button `…` that will open up a dialog to select the folder. The `File name` (2) is copied from the NC Program (and if changed, written back to it so that you don't have to change it every time unless you want to) and is the base of the naming of the output. There are several settings that will affect the name of the output, so it depends on most of the settings on this tab what the end result will be. Note that you shouldn't add a file extension as it is decided from the machine configuration.
+The `Output Options` tab is where the core behaviour of the plugin is setup. The obvious one is `Output folder` (1) that is where the result will be written. To the right of it there is a button `…` that will open up a dialog to select the folder. The `File name` (2) is copied from the NC Program (and if changed, written back to it so that you don't have to change it every time unless you want to) and is the base of the naming of the output. There are several settings that will affect the name of the output, so it depends on most of the settings on this tab what the end result will be. Note that you shouldn't add a file extension as it is decided from the post processor.
 
 To force the output to be numeric filenames only you tick the `Name must be numeric` checkbox (3). This setting is mostly only useful for machines that can only accept files with numeric names. if this option is selected the `File name` input will only accept numerical names and the `Process` button will be disabled if it isn't. It will only produce files with numbers and they will all end up in the `Output folder` root and the names will be incremented with 1 for each file produced. The number of digits depends on the number of digits in the starting file name, so if it is four digits in the file name, all files will have four digits. So if the first name is 0001 it means that it will have four digits and the next file will be called 0002 and so on.
 
