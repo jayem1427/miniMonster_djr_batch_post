@@ -1,6 +1,6 @@
 class Const():
-    CMD_NAME = "Makera Community Post Processor"
-    CMD_DEF_ID = "Makera_Community_Post_Processor"
+    CMD_NAME = "Batch Post"
+    CMD_DEF_ID = "BatchPost_Post_Processor"
     CAM_WORKSPACE_ID = "CAMEnvironment"
     CAM_ACTIONS_PANEL_ID = "CAMActionPanel"
     POST_PROCESS_CONTROL_ID = "IronPostProcess"
