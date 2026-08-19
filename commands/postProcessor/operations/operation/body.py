@@ -1,16 +1,45 @@
 from typing import Optional, TextIO
 
+from ... import runtime_options
 from ...file_modes import FileModes
-from ...settings.settings import Settings
+from ...gcode_helpers import (
+    coalesce_min_distance,
+    force_rapid_start_line,
+    strip_feed_words,
+)
 from ...line import Line
+from .rapidsParser import RapidsParser
 
 class OperationBody(Line):
+    def _refreshRapidsAnalysis(self):
+        """
+        Analyze the temp file immediately before writing.
+
+        Fusion may still be flushing when ``_parseFile`` runs, so an earlier
+        analysis can be empty even when restore-rapids is enabled. WriteBody
+        runs only after every operation has posted, so the file is complete.
+        """
+        if not runtime_options.restore_rapid_moves:
+            self._rapidsAnalysis = {}
+            return
+        if self._tempFilePath is None or not self._tempFilePath.exists():
+            self._rapidsAnalysis = {}
+            return
+        minDist = coalesce_min_distance(runtime_options.rapid_moves_minimum_distance, 20)
+        self._rapidsAnalysis = {
+            seg["startLine"]: seg["endLine"]
+            for seg in RapidsParser.analyze(RapidsParser.parseFile(self._tempFilePath), minDist=minDist)
+            if seg.get("isValid") and "startLine" in seg and "endLine" in seg
+        }
+
     def WriteBody(self, fileHandler: TextIO, rotationAngle: Optional[float] = None, preserveRotation: Optional[bool] = False):
+        self._refreshRapidsAnalysis()
         with self._tempFilePath.open(FileModes.READ) as operationFile:
             line = operationFile.readline()
             row = 0
             rapidsEnds = 0
             readNextLine = False
+            wroteRapidsStatus = False
             while len(line) != 0:
                 if readNextLine:
                     line = operationFile.readline() 
@@ -22,26 +51,29 @@ class OperationBody(Line):
                         if self._allowBlankLines:
                             fileHandler.write('\n') # keep blank line before operation start
                         self._lineNumber = self._writeLine(fileHandler, f"({self.name})", self._lineNumber)
+                        if runtime_options.restore_rapid_moves and not wroteRapidsStatus:
+                            self._lineNumber = self._writeLine(
+                                fileHandler,
+                                f"(Rapid restore: {len(self._rapidsAnalysis)} segment(s))",
+                                self._lineNumber,
+                            )
+                            wroteRapidsStatus = True
                     if row + 1 in self._rapidsAnalysis: # Add rapids comments if this line is the start of a rapid move
                         rapidsEnds = self._rapidsAnalysis[row + 1]
-                        lineMatch = OperationBody._PARSE_LINE_RE.match(line)
-                        if lineMatch and lineMatch.group("G") is not None:
-                            if int(float(lineMatch.group("G"))) == 1:
-                                gStart, gEnd = lineMatch.span("G")
-                                line = (line[:gStart] + "0" + line[gEnd:]).rstrip() + " (Rapid movement start)\n" # Change G1 to G0 for rapid move comment line
-                        elif lineMatch:
-                            self._lineNumber = self._writeLine(fileHandler, f"G0 {line.rstrip()} (Rapid movement start)", self._lineNumber)
-                            readNextLine = True
-                            continue
-                        else:
-                            # Regex did not match (unexpected format) — still force rapid mode.
-                            self._lineNumber = self._writeLine(fileHandler, f"G0 {line.rstrip()} (Rapid movement start)", self._lineNumber)
-                            readNextLine = True
-                            continue
+                        self._lineNumber = self._write(fileHandler, force_rapid_start_line(line), self._lineNumber)
+                        readNextLine = True
+                        continue
+                    if rapidsEnds and row + 1 < rapidsEnds:
+                        # Intermediate rapid traverse/retract words — keep G0 modal, drop F.
+                        cleaned = strip_feed_words(line.rstrip("\r\n")).rstrip() + "\n"
+                        self._lineNumber = self._write(fileHandler, cleaned, self._lineNumber)
+                        readNextLine = True
+                        continue
                     if row + 1 == rapidsEnds:
                         rapidsEnds = 0
-                        self._lineNumber = self._write(fileHandler, line, self._lineNumber)
-                        line = "G1 (Rapid movement end)\n" # Add a line after the rapid move to switch back to G1 if it was changed for the rapid move comment
+                        cleaned = strip_feed_words(line.rstrip("\r\n")).rstrip() + "\n"
+                        self._lineNumber = self._write(fileHandler, cleaned, self._lineNumber)
+                        line = "G1 (Rapid movement end)\n" # switch back to feed after the restored rapid
                     if self._matchLine(fileHandler, line, row, rotationAngle, preserveRotation):
                         readNextLine = True
                         continue
@@ -50,7 +82,7 @@ class OperationBody(Line):
 
                 line = operationFile.readline()
                 row += 1
-                if row >= self._tailStartLine:                            
+                if self._tailStartLine != -1 and row >= self._tailStartLine:
                     break
 
     def _matchLine(self, fileHandler: TextIO, line: str, row: int, rotationAngle: Optional[float], preserveRotation: Optional[bool] = False) -> bool:

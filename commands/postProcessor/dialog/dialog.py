@@ -180,7 +180,7 @@ class PostDialog(PostDialogLayout):
         command = args.command
 
         alignedWCS, badOrigins, badXAxes = Setups.getWCSAlignmentIssues()
-        if not alignedWCS:
+        if not alignedWCS and Setups.Count > 1:
             Utils.log(f'PostDialog: WCS are not aligned for setups: {badOrigins}', adsk.core.LogLevels.ErrorLogLevel)
             msg = '<i><u>Warning:</u></i><p>'
             if command.commandInputs.itemById(cls._ROTATE_A_AXIS_ID).value:
@@ -221,6 +221,9 @@ class PostDialog(PostDialogLayout):
                     return
 
         try:
+            from .. import runtime_options
+            runtime_options.sync_from_command_inputs(command.commandInputs)
+
             # Create a temporary folder to prepare all files in
             with tempfile.TemporaryDirectory() as tmpdir:
                 Programs.Current.Process(Path(tmpdir))

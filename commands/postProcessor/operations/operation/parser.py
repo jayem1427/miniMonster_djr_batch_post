@@ -1,8 +1,11 @@
 from pathlib import Path
 
-from .rapidsParser import RapidsParser
-
-from ...gcode_helpers import coalesce_min_distance, code_in_list
+from ...gcode_helpers import (
+    code_in_list,
+    is_tail_gap_line,
+    line_matches_end_codes,
+    update_trailing_end_sequence,
+)
 from ...line import Line
 from ...settings.settings import Settings
 
@@ -27,23 +30,26 @@ class OperationParser(Line):
         # Txx ...   (optionally preceded by line number Nxx)
         #
         # We copy all the body, looking for the tail. The start
-        # of the tail is denoted by any of a list of G-codes
-        # entered by the user. The defaults are:
+        # of the tail is the trailing run of end codes entered by
+        # the user. The defaults are:
         # M30 - end program
         # M5 - stop spindle
         # M9 - stop coolant
         # The tail is stripped until the last operation is done.
+        #
+        # Do not stop at the *first* M5/M9: Fusion LinuxCNC posts M9 at
+        # the start of each operation (coolant off before the tool
+        # change). That would mark the whole cutting body as "tail",
+        # skip rapid restoration, and drop later operations when merging.
+        #
+        # Rapid analysis is performed later in WriteBody once the temp
+        # file is guaranteed complete.
         #endregion
-
-        if Settings(Settings.RESTORE_RAPID_MOVES):
-            minDist = coalesce_min_distance(Settings(Settings.RAPID_MOVES_MINIMUM_DISTANCE), 20)
-            self._rapidsAnalysis = {seg["startLine"]: seg["endLine"]
-                    for seg in RapidsParser().analyze(RapidsParser().parseFile(filePath), minDist = minDist)
-                    if seg.get("isValid") and "startLine" in seg and "endLine" in seg}
         
         with filePath.open("r") as operationFile:
             line = operationFile.readline()
             self._toolCommentLine = -1
+            self._tailStartLine = -1
             lineNumber = -1
             inHeader = False
             processHeader = True
@@ -58,8 +64,7 @@ class OperationParser(Line):
                     processHeader, inHeader = self._parseHeaderLine(line, lineNumber, inHeader)
                     processBody = not processHeader
                 elif processBody:
-                    if self._parseBodyLine(line, lineNumber):
-                        return
+                    self._parseBodyLine(line, lineNumber)
                 line = operationFile.readline()
         return # No tail found, so probably a handmade operation
 
@@ -127,11 +132,14 @@ class OperationParser(Line):
             if bodyMatch.group("T") is not None and self._bodyStartLine == -1:
                 # found body start
                 self._bodyStartLine = lineNumber
-            elif bodyMatch.group("M") is not None:
-                mCode = int(bodyMatch.group("M"))
-                if code_in_list(f"M{mCode}", Settings.Get(Settings.END_CODES)):
-                    # found tail start
-                    self._tailStartLine = lineNumber
-                    return True # File analysis complete
+
+            is_end = line_matches_end_codes(line, Settings.Get(Settings.END_CODES))
+            is_significant = (not is_end) and (not is_tail_gap_line(line))
+            self._tailStartLine = update_trailing_end_sequence(
+                self._tailStartLine,
+                is_end_code=is_end,
+                is_significant=is_significant,
+                line_number=lineNumber,
+            )
         return False
     

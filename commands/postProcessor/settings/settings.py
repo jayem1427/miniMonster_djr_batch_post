@@ -75,6 +75,9 @@ class Settings(Constants, metaclass=_SettingsMeta):
             try:
                 cls._items = json.loads(attr.itemByName(Const.ATTR_GROUP, Const.ATTR_NAME).value)
                 if cls._items.get(Constants.VERSION) is not None and cls._items[Constants.VERSION] == config.SETTINGS_VERSION:
+                    # Still merge newly-added keys so older documents that
+                    # already have this version number pick up defaults.
+                    cls.Update(Settings._defaultSettings, cls._items)
                     return  # settings are valid for this version
             except Exception:
                 pass

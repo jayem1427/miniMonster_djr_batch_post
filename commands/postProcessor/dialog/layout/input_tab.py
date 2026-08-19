@@ -10,6 +10,7 @@ from ...programs import Programs
 from ...setups.setups import Setups
 from ...setups.setup.setup import Setup
 from ...strings import Strings
+from ...validation_helpers import is_setup_row_selectable
 
 from ..dialog_constants import PostDialogConstants
 from ..event_registry import EventRegistry
@@ -127,7 +128,7 @@ class InputTab(PostDialogConstants):
                 Utils.log(f'Updating setup selection from dialog: {setup.name} selected={checkbox.value}')
                 setup.Select(checkbox.value)
                 cls._updateSetups(checkbox) # Update the table to enable/disable inputs based on the new selection
-                EventRegistry.setValue(cls._SELECT_ALL_SETUPS_ID, areAllSetupsSelected(checkbox.parentCommand.commandInputs))
+                _syncSelectAll(checkbox.parentCommand.commandInputs)
 
         def areAllSetupsSelected(inputs) -> bool:
             for s in Setups:
@@ -141,11 +142,16 @@ class InputTab(PostDialogConstants):
                 if not checkbox.value:
                     return False
             return True
+
+        def _syncSelectAll(inputs) -> None:
+            selectAll = inputs.itemById(cls._SELECT_ALL_SETUPS_ID)
+            if selectAll is not None:
+                EventRegistry.setValue(selectAll, areAllSetupsSelected(inputs))
         
         # Wiring up event so that when the A-axis option is changed, 
         # the checkbox enabling de-/selecting all enabled setups is 
         # updated to reflect the new state.
-        EventRegistry.register(cls._ROTATE_A_AXIS_ID, lambda input: EventRegistry.setValue(cls._SELECT_ALL_SETUPS_ID, areAllSetupsSelected(input.parentCommand.commandInputs)))
+        EventRegistry.register(cls._ROTATE_A_AXIS_ID, lambda input: _syncSelectAll(input.parentCommand.commandInputs))
         
         def updateSetupsWithNotice(input: adsk.core.CommandInput):
             needsRotation, rotatedSetups = Setups.AAxisRotationRequired()
@@ -154,7 +160,7 @@ class InputTab(PostDialogConstants):
                 app = adsk.core.Application.get()
                 ui = app.userInterface
                 if ui.messageBox(
-                        Strings("Some setups will be deselected as they are rotated. <p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?")
+                        Strings("These setups are rotated relative to the first selected setup. Without A-axis rotation, combining them into one file may produce unexpected motion.<p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?")
                             .format(rotatedSetups = ''.join([Strings("<li>{name}: {degrees}°</li>")
                                                             .format(name=name, degrees=degrees) for name, degrees in rotatedSetups])),
                         Const.CMD_NAME,
@@ -163,7 +169,7 @@ class InputTab(PostDialogConstants):
                     input.value = not input.value # revert the change if user cancels
             cls._updateSetups(input)
 
-        EventRegistry.register(cls._ROTATE_A_AXIS_ID, updateSetupsWithNotice) # If the Rotate A-Axis option is changed, some setups may become ineligible for selection and need to be updated in the table.
+        EventRegistry.register(cls._ROTATE_A_AXIS_ID, updateSetupsWithNotice) # Refresh origin/rotation columns when A-axis rotation is toggled.
 
         # Add setup rows
         for setup in Setups:
@@ -227,7 +233,10 @@ class InputTab(PostDialogConstants):
         settings."""
         inputs = input.parentCommand.commandInputs
         rotateAAxisCheckbox: adsk.core.BoolValueCommandInput = inputs.itemById(cls._ROTATE_A_AXIS_ID)
-        rotateAAxisCheckbox.isEnabled = False if Programs.Current is None else Programs.Current.machineHasAAxis
+        if rotateAAxisCheckbox is not None:
+            # A-axis injection is done by this add-in; a Fusion machine
+            # that reports an A-axis is optional.
+            rotateAAxisCheckbox.isEnabled = Programs.Current is not None
 
         validProgram = Programs.Current is not None and Programs.Current.canProcess
 
@@ -244,34 +253,15 @@ class InputTab(PostDialogConstants):
                 validProgram,
                 setup.origin.isEqualTo(firstSetup.origin) if firstSetup is not None else True,
                 setup.xNormal.isParallelTo(firstSetup.xNormal) if firstSetup is not None else True,
-                rotateAAxisCheckbox.value,
                 rotation)
 
             cls._setTableRowValues(inputs, rowState)
             
-            setup.Select(rowState[cls._SELECTED]) # Update the setup's selected state based on the value in the table, which may have been changed if the setup became ineligible for selection
+            setup.Select(rowState[cls._SELECTED])
 
             if firstSetup is None and setup.isSelected:
                 firstSetup = setup
 
-
-    @classmethod
-    def _isSetupSelectable(cls, 
-                           firstSetup: Setup, 
-                           validProgram: bool, 
-                           sameOrigin: bool, 
-                           parallelXAxis: bool, 
-                           canRotate: bool, 
-                           requiredRotation: float
-                        ) -> bool:
-        if firstSetup is None:
-            return True
-        return sameOrigin \
-            and parallelXAxis \
-            and validProgram \
-            and (requiredRotation == 0 \
-                or (Programs.Current.machineHasAAxis \
-                    and canRotate))
 
     _INDEX = "index"
     _ENABLED = "enabled"
@@ -288,7 +278,6 @@ class InputTab(PostDialogConstants):
                         validProgram: bool,
                         sameOrigin: bool,
                         parallelXAxis: bool,
-                        canRotate: bool,
                         rotation: float
                     ) -> Tuple[bool, bool, str, str, str]:
         """Determines the enabled state, selected state, and displayed 
@@ -296,13 +285,7 @@ class InputTab(PostDialogConstants):
         the table based on the setup's properties and the current 
         program selection."""
         
-        isSelectable = cls._isSetupSelectable(
-                                not hasReference,
-                                validProgram,
-                                sameOrigin,
-                                parallelXAxis,  
-                                canRotate, 
-                                rotation)
+        isSelectable = is_setup_row_selectable(valid_program=validProgram)
 
         isEnabled = isSelectable
         isSelected = setup.isSelected if isSelectable else False

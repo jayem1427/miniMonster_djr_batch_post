@@ -53,7 +53,7 @@
       "Same": "Same",
       "Different": "Different",
       "(reference)": "(reference)",
-      "Some setups will be deselected as they are rotated. <p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?": "Some setups will be deselected as they are rotated. <p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?",
+      "These setups are rotated relative to the first selected setup. Without A-axis rotation, combining them into one file may produce unexpected motion.<p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?": "These setups are rotated relative to the first selected setup. Without A-axis rotation, combining them into one file may produce unexpected motion.<p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?",
       "The selected NC Program has the following warning:\n{warning}": "The selected NC Program has the following warning:\n{warning}"
     },
   "gcode_tab": {
@@ -63,7 +63,7 @@
       "G-code Options": "G-code Options",
       "Rotate A-Axis between setups": "Rotate A-Axis between setups",
       "TOOLTIP: Rotate A-Axis between setups": "Rotate A-Axis between setups",
-      "TOOLTIP TEXT: Rotate A-Axis between setups": "When enabled, the A-axis will be rotated to the required position between setups that have different A-axis orientations. This is useful for 4-axis machining where the stock may need to be rotated to access different sides.</p>This option is only enabled if the selected program has a machine that has an A-axis. It allows the output to be a single file.",
+      "TOOLTIP TEXT: Rotate A-Axis between setups": "When enabled, the A-axis will be rotated to the required position between setups that have different A-axis orientations. This is useful for 4-axis machining where the stock may need to be rotated to access different sides. A Fusion machine configuration is optional; if none is attached, Process will warn before posting.",
 
       "Retract Y on A-axis rotation": "Retract Y on A-axis rotation",
       "TOOLTIP: Retract Y on A-axis rotation": "Retract Y axis when rotating A-axis",
@@ -130,7 +130,7 @@
       "TOOLTIP TEXT: Number of file digits": "When prepending a file name with a number, this setting will make sure that the number of digits used for the prepended number is no less than specified here. So if this value is 3, the file names will all start with three digits and an underscore (_), so 001_, 002_ and so on will be prepended.",
       "Operations grouping": "Operations grouping",
       "TOOLTIP: Operations grouping": "How to group the operations into output files",
-      "TOOLTIP TEXT: Operations grouping": "Choose how operations are grouped into output files.<p><i>Single file:</i> All operations are combined into a single G-code file. This option is only available if the origin of all setups are the same.<br>If the setups are rotated on the X-axis it also requires that the <i>Rotate A-Axis between setups</i> option is selected and that the X-axes of all the selected setups are parallel.<br><i>Group on setup:</i> Each setup is output as a separate G-code file. This option is only available if there is multiple setups that will be processed.<br><i>Group on setup and tool:</i> Operations are grouped by setup and tool, so each time the tool changes within a setup a new file is created.<br><i>None, one file per operation:</i> Each operation is output as its own G-code file.",
+      "TOOLTIP TEXT: Operations grouping": "Choose how operations are grouped into output files.<p><i>Single file:</i> All selected setups and operations are combined into a single G-code file. If setups are rotated around X, enable <i>Rotate A-Axis between setups</i> so A moves are inserted between them.<br><i>Group on setup:</i> Each setup is output as a separate G-code file.<br><i>Group on setup and tool:</i> Operations are grouped by setup and tool, so each time the tool changes within a setup a new file is created.<br><i>None, one file per operation:</i> Each operation is output as its own G-code file.",
 
       "Single file": "Single file",
       "Group on setup": "Group on setup",

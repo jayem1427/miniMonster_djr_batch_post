@@ -67,7 +67,7 @@
       "Same": "Samma",
       "Different": "Olika",
       "(reference)": "(referens)",
-      "Some setups will be deselected as they are rotated. <p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?": "Vissa Setups kommer att avmarkeras eftersom de är roterade. <p>Roterade Setups:<ul>{rotatedSetups}</ul><p>Vill du fortsätta?",
+      "These setups are rotated relative to the first selected setup. Without A-axis rotation, combining them into one file may produce unexpected motion.<p>Rotated setups:<ul>{rotatedSetups}</ul><p>Do you want to continue?": "Dessa setups är roterade relativt den först valda setupen. Utan A-axelrotation kan det ge oväntade rörelser om de kombineras i en fil.<p>Roterade setups:<ul>{rotatedSetups}</ul><p>Vill du fortsätta?",
       "The selected NC Program has the following warning:\n{warning}": "Det valda NC-programmet har följande varning:\n{warning}"
     },
   "gcode_tab": {
@@ -77,7 +77,7 @@
       "G-code Options": "Inställningar för G-kod",
       "Rotate A-Axis between setups": "Rotera A-axeln mellan setups",
       "TOOLTIP: Rotate A-Axis between setups": "Rotera A-axeln mellan setups",
-      "TOOLTIP TEXT: Rotate A-Axis between setups": "När aktiverat roteras A-axeln till nödvändig position mellan setups med olika A-orientering. Endast tillgängligt om maskinen har en A-axel.",
+      "TOOLTIP TEXT: Rotate A-Axis between setups": "När aktiverat roteras A-axeln till nödvändig position mellan setups med olika A-orientering. En Fusion-maskinkonfiguration är valfri; om ingen är kopplad varnar Process innan utdata skapas.",
 
       "Retract Y on A-axis rotation": "Dra tillbaka Y vid A-axelrotation",
       "TOOLTIP: Retract Y on A-axis rotation": "Dra tillbaka Y-axeln vid A-axelrotation",

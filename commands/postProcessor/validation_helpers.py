@@ -12,21 +12,33 @@ def are_process_inputs_valid(
     can_process: bool,
     has_selected_setups: bool,
     selected_setups_ok: bool,
-    rotate_a_axis_enabled: bool,
-    machine_has_a_axis: bool,
-    a_axis_rotation_required: bool,
+    rotate_a_axis_enabled: bool = False,
+    machine_has_a_axis: bool = False,
+    a_axis_rotation_required: bool = False,
 ) -> bool:
     """
     Decide whether the Process / OK button should be enabled.
 
-    Machine configuration is optional. A-axis presence is only required
-    when the user enabled Rotate A-Axis *and* selected setups need rotation.
+    Machine configuration is optional. A-axis injection is done by this
+    add-in, so a missing machine A-axis must not disable Process. The
+    execute handler already warns before posting.
     """
-    if not (has_program and can_process and has_selected_setups and selected_setups_ok):
-        return False
-    if rotate_a_axis_enabled and a_axis_rotation_required and not machine_has_a_axis:
-        return False
-    return True
+    # Kept in the signature because the dialog still reports these.
+    _ = (rotate_a_axis_enabled, machine_has_a_axis, a_axis_rotation_required)
+    return bool(has_program and can_process and has_selected_setups and selected_setups_ok)
+
+
+def is_setup_row_selectable(*, valid_program: bool) -> bool:
+    """
+    Any non-error setup can be included in a multi-setup / single-file post.
+
+    WCS origin, X-axis alignment, and A-axis rotation are shown in the
+    table and warned at Process time. They must not grey out checkboxes:
+    that made it impossible to select more than the reference setup
+    unless a Fusion machine reported an A-axis *and* origins matched
+    exactly.
+    """
+    return bool(valid_program)
 
 
 def select_single_file_tail_setup(setups):

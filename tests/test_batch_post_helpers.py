@@ -6,6 +6,7 @@ These tests intentionally document historical bugs so regressions are obvious:
 - substring matching of M/G codes against multi-line settings
 - effectiveDist using sum instead of max
 - Process button disabled for rotated setups when machine config is optional
+- Setup checkboxes greyed out when WCS origin/rotation did not match the reference
 - SINGLE_FILE tail taken from the wrong setup
 - UNC Path subscripting crash in SetOutputFolder
 """
@@ -31,6 +32,7 @@ from batch_post.commands.postProcessor.gcode_helpers import (  # noqa: E402
 from batch_post.commands.postProcessor.operations.operation.rapidsParser import RapidsParser  # noqa: E402
 from batch_post.commands.postProcessor.validation_helpers import (  # noqa: E402
     are_process_inputs_valid,
+    is_setup_row_selectable,
     select_single_file_tail_setup,
     unc_output_folder_value,
 )
@@ -190,8 +192,10 @@ class TestProcessInputValidation:
             a_axis_rotation_required=True,
         )
 
-    def test_blocks_rotation_without_machine_when_enabled(self):
-        assert not are_process_inputs_valid(
+    def test_allows_rotation_without_machine_when_enabled(self):
+        # Historical bug: Process was disabled unless a Fusion machine
+        # reported an A-axis, which blocked multi-setup single-file posting.
+        assert are_process_inputs_valid(
             has_program=True,
             can_process=True,
             has_selected_setups=True,
@@ -222,6 +226,17 @@ class TestProcessInputValidation:
             machine_has_a_axis=False,
             a_axis_rotation_required=False,
         )
+
+
+class TestSetupRowSelectable:
+    def test_requires_valid_program(self):
+        assert not is_setup_row_selectable(valid_program=False)
+
+    def test_allows_any_setup_when_program_is_valid(self):
+        # Historical bug: mismatched origin/rotation greyed out every
+        # setup except the reference, so multi-setup single-file posting
+        # was impossible without a Fusion machine A-axis.
+        assert is_setup_row_selectable(valid_program=True)
 
 
 class TestSingleFileTailSelection:

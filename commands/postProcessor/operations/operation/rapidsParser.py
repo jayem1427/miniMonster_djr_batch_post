@@ -472,11 +472,21 @@ class RapidsParser:
                         return True
             return False
 
+        def _hasZWord(tokens):
+            for token in tokens:
+                if len(token) >= 2 and token[0] == cls.WORD.Z:
+                    if any(ch.isdigit() or ch in "+-." for ch in token[1:]):
+                        return True
+            return False
+
         for segment in segments:
             segment[cls.KEY_IS_VALID] = True
             segment[cls.KEY_REASONS] = []
 
-            # Rule: disqualify if middle steps contain arc/feed tokens
+            # Rule: disqualify if middle steps contain arcs.
+            # Do NOT reject F on middle/end XY words — Fusion Personal stamps
+            # feed on "rapid" traverses; those F words are stripped when we
+            # rewrite the segment as G0.
             for line in (segment.get(cls.KEY_MIDDLE, []) or []):
                 tokens = _tokenize(line)
 
@@ -484,16 +494,14 @@ class RapidsParser:
                     segment[cls.KEY_IS_VALID] = False
                     segment[cls.KEY_REASONS].append(cls.REASON_ARC_IN_MIDDLE)
 
-                if _hasFeed(tokens):
-                    segment[cls.KEY_IS_VALID] = False
-                    segment[cls.KEY_REASONS].append(cls.REASON_FEED_IN_MIDDLE)
-
-            # Rule: If ending line contains feed, move back one line until it is valid or run out of middle lines.
+            # Rule: If ending line contains feed and looks like a plunge
+            # (Z present), move the end back onto the last XY traverse.
+            # XY ends may keep an F word; WriteBody strips it.
             tokens = _tokenize(segment[cls.O_END])
-            if _hasFeed(tokens):
+            if _hasFeed(tokens) and _hasZWord(tokens):
                 middle = segment.get(cls.O_MIDDLE, [])
                 middleLines = segment.get(cls.O_MIDDLE_LINES, [])
-                while _hasFeed(tokens) and len(middleLines) > 0:
+                while _hasFeed(tokens) and _hasZWord(tokens) and len(middleLines) > 0:
                     segment[cls.O_END] = middle[-1]
                     segment[cls.O_END_LINE] = middleLines[-1]
                     middle.pop()
@@ -504,7 +512,7 @@ class RapidsParser:
                 segment[cls.O_MIDDLE_LINES] = middleLines
                 segment[cls.O_MIDDLE_STEPS_COUNT] = len(segment[cls.O_MIDDLE_LINES])
 
-                if _hasFeed(tokens) and (len(segment.get(cls.O_MIDDLE_LINES, [])) == 0):
+                if _hasFeed(tokens) and _hasZWord(tokens) and (len(segment.get(cls.O_MIDDLE_LINES, [])) == 0):
                     segment[cls.KEY_IS_VALID] = False
                     segment[cls.KEY_REASONS].append(cls.REASON_END_HAS_FEED_AND_NO_MIDDLE)
 

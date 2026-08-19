@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Optional
-import time
 import uuid
 
 import adsk.cam
@@ -134,13 +133,8 @@ class Operation(OperationParser, OperationHeader, OperationBody, OperationTail):
         # Allow a few more loops than POST_RETRIES so short delays still
         # cover slow Fusion file flushes (historically ~5.5s with delay=0.1).
         maxLoops = max(retries * 3, 10)
-        loops = 0
-        # Wait for the file to be created; sometimes it is not immediately
-        # available after post processing.
-        while not self._tempFilePath.exists() and loops < maxLoops:
-            loops += 1
-            time.sleep(delay * loops)
-        if loops >= maxLoops or not self._tempFilePath.exists():
+        from ...gcode_helpers import wait_for_post_output
+        if not wait_for_post_output(self._tempFilePath, delay=delay, max_loops=maxLoops):
             raise Exception(f"Operation {self.name} post processing failed: output file was not created.")
 
         self._parseFile(self._tempFilePath)
