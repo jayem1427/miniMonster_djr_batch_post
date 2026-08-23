@@ -4,14 +4,19 @@ from typing import TextIO
 from .....config import PLUGIN_VERSION
 from ...config import CMD_NAME
 from ...file_modes import FileModes
+from ...gcode_helpers import filter_merged_source_line, format_comment
 
 class OperationHeader():
     def WriteHeaderStart(self, fileHandler: TextIO):
         with self._tempFilePath.open("r") as operationFile:
             
             file = Path(fileHandler.name).stem
-            self._lineNumber = self._writeLine(fileHandler, "({fileName})".format(fileName = file), 0)
-            self._lineNumber = self._writeLine(fileHandler, "(Generated with {pluginName} version {pluginVersion})".format(pluginName = CMD_NAME, pluginVersion = PLUGIN_VERSION), self._lineNumber)
+            self._lineNumber = self._writeLine(fileHandler, format_comment(file), 0)
+            self._lineNumber = self._writeLine(
+                fileHandler,
+                format_comment(f"Generated with {CMD_NAME} version {PLUGIN_VERSION}"),
+                self._lineNumber,
+            )
 
             line = operationFile.readline()
             row = 0
@@ -25,7 +30,9 @@ class OperationHeader():
                     continue
                 elif row == self._toolCommentLine:
                     break
-                self._lineNumber = self._write(fileHandler, line, self._lineNumber)
+                filtered = filter_merged_source_line(line)
+                if filtered is not None:
+                    self._lineNumber = self._write(fileHandler, filtered, self._lineNumber)
                 line = operationFile.readline()
                 row += 1
 
@@ -35,7 +42,9 @@ class OperationHeader():
             row = 0
             while len(line) != 0:
                 if row == self._toolCommentLine:
-                    self._lineNumber = self._write(fileHandler, line, self._lineNumber)
+                    filtered = filter_merged_source_line(line)
+                    if filtered is not None:
+                        self._lineNumber = self._write(fileHandler, filtered, self._lineNumber)
                     break
                 line = operationFile.readline()
                 row += 1
@@ -46,7 +55,9 @@ class OperationHeader():
             row = 0
             while len(line) != 0:
                 if row > self._toolCommentLine and row <= self._headerEndLine:
-                    self._lineNumber = self._write(fileHandler, line, self._lineNumber)
+                    filtered = filter_merged_source_line(line)
+                    if filtered is not None:
+                        self._lineNumber = self._write(fileHandler, filtered, self._lineNumber)
                 line = operationFile.readline()
                 row += 1
 

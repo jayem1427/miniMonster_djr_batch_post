@@ -1,6 +1,7 @@
 from typing import TextIO
 
 from ...file_modes import FileModes
+from ...gcode_helpers import filter_merged_source_line, format_comment
 
 class OperationTail():
     def WriteTail(self, fileHandler: TextIO):
@@ -12,9 +13,11 @@ class OperationTail():
                 if row == self._tailStartLine: # Add an extra line marking where this operation tail starts
                     if(self._allowBlankLines):
                         fileHandler.write("\n") # ensure blank line before operation tail
-                    self._lineNumber = self._writeLine(fileHandler, f"({self.name})", self._lineNumber)
+                    self._lineNumber = self._writeLine(fileHandler, format_comment(self.name), self._lineNumber)
                 if row >= self._tailStartLine:
-                    self._lineNumber = self._write(fileHandler, line, self._lineNumber)
+                    filtered = filter_merged_source_line(line)
+                    if filtered is not None:
+                        self._lineNumber = self._write(fileHandler, filtered, self._lineNumber)
                 line = operationFile.readline()
                 row += 1
         # For numeric file names

@@ -4,11 +4,12 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...gcode_helpers import strip_inline_comments
+
 
 class RapidsParser:
     # Regex
     WORD_RE = re.compile(r'([A-Za-z])\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))')
-    COMMENT_RE = re.compile(r'\([^)]*\)')
 
     # G/M words (letters)
     class WORD:
@@ -83,7 +84,7 @@ class RapidsParser:
 
     @classmethod
     def _parseLine(cls, line: str):
-        clean = cls.COMMENT_RE.sub("", line)
+        clean = strip_inline_comments(line)
         raw = cls.WORD_RE.findall(clean)
         if not raw:
             return [], False, False, False, None

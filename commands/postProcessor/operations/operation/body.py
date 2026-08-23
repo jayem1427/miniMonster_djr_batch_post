@@ -4,7 +4,9 @@ from ... import runtime_options
 from ...file_modes import FileModes
 from ...gcode_helpers import (
     coalesce_min_distance,
+    filter_merged_source_line,
     force_rapid_start_line,
+    format_comment,
     strip_feed_words,
 )
 from ...line import Line
@@ -50,11 +52,11 @@ class OperationBody(Line):
                     if row == self._bodyStartLine: # Add an extra line marking where this operation starts
                         if self._allowBlankLines:
                             fileHandler.write('\n') # keep blank line before operation start
-                        self._lineNumber = self._writeLine(fileHandler, f"({self.name})", self._lineNumber)
+                        self._lineNumber = self._writeLine(fileHandler, format_comment(self.name), self._lineNumber)
                         if runtime_options.restore_rapid_moves and not wroteRapidsStatus:
                             self._lineNumber = self._writeLine(
                                 fileHandler,
-                                f"(Rapid restore: {len(self._rapidsAnalysis)} segment(s))",
+                                format_comment(f"Rapid restore: {len(self._rapidsAnalysis)} segment(s)"),
                                 self._lineNumber,
                             )
                             wroteRapidsStatus = True
@@ -78,7 +80,9 @@ class OperationBody(Line):
                         readNextLine = True
                         continue
 
-                    self._lineNumber = self._write(fileHandler, line, self._lineNumber)
+                    filtered = filter_merged_source_line(line)
+                    if filtered is not None:
+                        self._lineNumber = self._write(fileHandler, filtered, self._lineNumber)
 
                 line = operationFile.readline()
                 row += 1
@@ -110,7 +114,7 @@ class OperationBody(Line):
         elif rotationAngle is None: # No rotation provided, ignore the line as it will rotate to 0 which we don't want.
             return True
         else: # Write our own rotation code based on the provided rotation angle
-            self._lineNumber = self._writeLine(fileHandler, "(Rotating A-axis between setups)", self._lineNumber)
+            self._lineNumber = self._writeLine(fileHandler, format_comment("Rotating A-axis between setups"), self._lineNumber)
             # Using G53 for absolute machine coordinates for safe retraction
             if Settings(Settings.SAFE_Y_RETRACTION):
                 self._lineNumber = self._writeLine(fileHandler, "G90 G53 G0 Z-3 Y{yRetraction}".format(yRetraction = Settings(Settings.Y_RETRACTION_COORDINATE)), self._lineNumber)

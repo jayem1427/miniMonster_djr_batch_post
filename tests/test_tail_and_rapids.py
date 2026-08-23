@@ -84,6 +84,7 @@ def test_sample_retracts_are_inside_body_window():
 def test_force_rapid_start_handles_indented_modal_z():
     assert force_rapid_start_line(" Z5.\n") == "G0 Z5. (Rapid movement start)\n"
     assert force_rapid_start_line("N65 G1 Z5. F1200.\n") == "N65 G0 Z5. (Rapid movement start)\n"
+    assert force_rapid_start_line("G1 Z5. (retract)\n") == "G0 Z5. (Rapid movement start)\n"
     assert "F" not in force_rapid_start_line("G1 Z5. F2286.\n")
 
 

@@ -27,6 +27,12 @@ def code_in_list(code: str, raw: str | None) -> bool:
     return code.strip().upper() in parse_code_list(raw)
 
 
+def is_percent_line(line: str) -> bool:
+    """True when the line is only a LinuxCNC percent delimiter (``%`` / ``%%``)."""
+    stripped = line.strip()
+    return stripped in ("%", "%%")
+
+
 def is_tail_gap_line(line: str) -> bool:
     """
     True for blanks, ``%`` / ``%%``, and full-line comments.
@@ -35,9 +41,67 @@ def is_tail_gap_line(line: str) -> bool:
     not cancel a trailing end-code run.
     """
     stripped = line.strip()
-    if not stripped or stripped in ("%", "%%"):
+    if not stripped or is_percent_line(line):
         return True
     return stripped.startswith("(") and stripped.endswith(")")
+
+
+def sanitize_comment_text(text: str) -> str:
+    """
+    Make arbitrary text safe inside a LinuxCNC ``(...)`` comment.
+
+    Parentheses cannot be nested in RS-274 comments; replace them so operation
+    names and other injected text cannot break parsing.
+    """
+    return str(text).replace("(", "[").replace(")", "]")
+
+
+def format_comment(text: str) -> str:
+    """Format sanitized text as a full-line LinuxCNC comment."""
+    return f"({sanitize_comment_text(text)})"
+
+
+def strip_inline_comments(line: str) -> str:
+    """
+    Remove parenthetical and semicolon comments from a G-code line.
+
+    LinuxCNC does not support nested ``(...)`` comments. Stripping before
+    appending our own markers avoids invalid multi-comment lines such as
+    ``G1 Z5. (retract) (Rapid movement start)``.
+    """
+    result: list[str] = []
+    i = 0
+    while i < len(line):
+        ch = line[i]
+        if ch == "(":
+            depth = 1
+            i += 1
+            while i < len(line) and depth > 0:
+                if line[i] == "(":
+                    depth += 1
+                elif line[i] == ")":
+                    depth -= 1
+                i += 1
+            continue
+        if ch == ";":
+            break
+        result.append(ch)
+        i += 1
+    return re.sub(r"[ \t]+", " ", "".join(result)).rstrip()
+
+
+def filter_merged_source_line(line: str) -> str | None:
+    """
+    Return ``None`` to drop a line when stitching posted operation files.
+
+    Percent delimiters are stripped from merged output. LinuxCNC only allows
+    ``%`` as the first and last non-blank lines of a file; Batch Post injects
+    its own header comments before the post-processor header, which would leave
+    a stray ``%`` in the body. ``M30`` / ``M2`` make percent wrapping optional.
+    """
+    if is_percent_line(line):
+        return None
+    return line
 
 
 def line_matches_end_codes(line: str, end_codes: str | None) -> bool:
@@ -47,7 +111,7 @@ def line_matches_end_codes(line: str, end_codes: str | None) -> bool:
     Leading ``N`` words and ``(...)`` comments are ignored. ``T15 M600`` does
     not match because the first word is ``T``, not an end code.
     """
-    clean = re.sub(r"\([^)]*\)", "", line)
+    clean = strip_inline_comments(line)
     clean = re.sub(r"^\s*N\d+\s*", "", clean, flags=re.IGNORECASE)
     match = re.match(r"\s*([GM])0*(\d+)", clean, flags=re.IGNORECASE)
     if not match:
@@ -196,7 +260,7 @@ def force_rapid_start_line(line: str) -> str:
     Handles modal lines such as `` Z5.`` (leading spaces, no G-word) that the
     older G-code regex matched as an empty string.
     """
-    working = strip_feed_words(line.rstrip("\r\n"))
+    working = strip_feed_words(strip_inline_comments(line.rstrip("\r\n")))
     if _LEADING_MOTION_G_RE.match(working):
         working = _LEADING_MOTION_G_RE.sub(r"\1G0", working, count=1)
     else:
