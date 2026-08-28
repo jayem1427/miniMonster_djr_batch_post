@@ -123,7 +123,9 @@ class OperationParser(Line):
                 gCode = int(bodyMatch.group("G"))
                 if gCode == 0:
                     lineMatch = OperationParser._PARSE_LINE_RE.match(line)
-                    # We're only interested in the first rotation move
+                    # We're only interested in the first rotation move.
+                    # Posts without a 4-axis machine often omit G0 A0;
+                    # WriteBody then injects A from setup WCS instead.
                     if not self.hasRotation and lineMatch and lineMatch.group("G") is not None and lineMatch.group("A") is not None:
                         aCode = float(lineMatch.group("A"))
                         if aCode == 0.0:

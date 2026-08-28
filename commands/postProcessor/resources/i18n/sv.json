@@ -46,7 +46,7 @@
       "TOOLTIP TEXT: NC Program to Use": "Post Process Utility använder inställningarna från det valda NC-programmet.",
       "Machine": "Maskin",
       "TOOLTIP: Machine": "Maskin",
-      "TOOLTIP TEXT: Machine": "Valfri maskindefinition på det valda NC-programmet. Utan maskin används endast postprocessorns inställningar. Maskin krävs för A-axelrotation och ATC-platstilldelning.",
+      "TOOLTIP TEXT: Machine": "Valfri maskindefinition på det valda NC-programmet. Utan maskin används endast postprocessorns inställningar. A-axelrotation mellan setups skrivs av tillägget och kräver ingen maskin. Koppla en maskin om du vill tilldela ATC-platser på fliken Verktyg.",
 
       "Post Processor": "Postprocessor",
       "TOOLTIP: Post Processor": "Postprocessor",
@@ -77,7 +77,7 @@
       "G-code Options": "Inställningar för G-kod",
       "Rotate A-Axis between setups": "Rotera A-axeln mellan setups",
       "TOOLTIP: Rotate A-Axis between setups": "Rotera A-axeln mellan setups",
-      "TOOLTIP TEXT: Rotate A-Axis between setups": "När aktiverat roteras A-axeln till nödvändig position mellan setups med olika A-orientering. En Fusion-maskinkonfiguration är valfri; om ingen är kopplad varnar Process innan utdata skapas.",
+      "TOOLTIP TEXT: Rotate A-Axis between setups": "När aktiverat roteras A-axeln till nödvändig position mellan setups med olika A-orientering. En Fusion-maskinkonfiguration krävs inte; tillägget skriver A-rörelserna från varje setups WCS-orientering.",
 
       "Retract Y on A-axis rotation": "Dra tillbaka Y vid A-axelrotation",
       "TOOLTIP: Retract Y on A-axis rotation": "Dra tillbaka Y-axeln vid A-axelrotation",

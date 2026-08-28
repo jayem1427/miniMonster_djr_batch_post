@@ -90,6 +90,48 @@ def strip_inline_comments(line: str) -> str:
     return re.sub(r"[ \t]+", " ", "".join(result)).rstrip()
 
 
+def format_a_axis_angle(angle: float) -> str:
+    """Format an A-axis angle, stripping trailing zeros (``90.000`` → ``90``)."""
+    text = f"{float(angle):.3f}".rstrip("0").rstrip(".")
+    return text if text not in ("", "-", "-0") else "0"
+
+
+def should_inject_synthetic_a_axis(*, has_native_rotation: bool, rotation_angle: float | None) -> bool:
+    """
+    True when this add-in must write A-axis motion itself.
+
+    Fusion only posts ``G0 A0`` when the NC Program's machine has a 4th axis.
+    Without a machine definition the posted op has no A-word, so indexed
+    rotation between setups would otherwise be silently dropped. A rotation
+    angle of ``0`` is valid (first setup / A home).
+    """
+    return (not has_native_rotation) and rotation_angle is not None
+
+
+def format_a_axis_rotation_block(
+    angle: float,
+    *,
+    retract_y: bool = False,
+    y_coordinate: float | int = 0,
+    include_retract: bool = True,
+) -> list[str]:
+    """
+    Lines that retract (optional) and rotate A to ``angle``.
+
+    ``include_retract`` is False for the first setup, matching a native
+    ``G0 A0`` home without a G53 move at program start.
+    """
+    lines: list[str] = []
+    if include_retract:
+        lines.append(format_comment("Rotating A-axis between setups"))
+        if retract_y:
+            lines.append(f"G90 G53 G0 Z-3 Y{y_coordinate}")
+        else:
+            lines.append("G90 G53 G0 Z-3")
+    lines.append(f"G90 G54 G0 A{format_a_axis_angle(angle)}")
+    return lines
+
+
 def filter_merged_source_line(line: str) -> str | None:
     """
     Return ``None`` to drop a line when stitching posted operation files.

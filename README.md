@@ -6,7 +6,7 @@ It is especially useful on **Fusion Personal**, which cannot normally post multi
 
 Works with **any** Fusion post-processor (LinuxCNC, Mach, Fanuc, custom `.cps`, etc.).
 
-**Version:** `0.9.1` (kept in sync in `Batch Post.manifest` and `config.py`).
+**Version:** `0.9.2` (kept in sync in `Batch Post.manifest` and `config.py`).
 
 ## Features
 - Output one file per operation, per setup, per setup and tool, or a single combined file
@@ -45,14 +45,14 @@ git clone https://github.com/jayem1427/miniMonster_djr_batch_post.git "Batch Pos
 5. (Optional) Enable **Run on startup**
 6. You should see a new icon in the **Manufacture** workspace (near Setup sheet / Milling)
 
-After pulling updates, fully quit and reopen Fusion (or stop/start the add-in) so the new code loads. Confirm the version in the G-code header: `(Generated with Batch Post version 0.9.1)`.
+After pulling updates, fully quit and reopen Fusion (or stop/start the add-in) so the new code loads. Confirm the version in the G-code header: `(Generated with Batch Post version 0.9.2)`.
 
 ## Usage
 This utility is **not** a post-processor. You still need an **NC Program** in Fusion that points at your post-processor (and optionally a machine configuration).
 
 1. Create an NC Program with the normal Fusion post dialog and select your `.cps` file.
 2. You must select a **post processor** on the NC Program.
-3. A **machine configuration** is optional. Without one, posting uses your post-processor settings only. Attach a machine if you need **A-axis rotation between setups** or **ATC slot assignment** in the Tools tab.
+3. A **machine configuration** is optional. Without one, posting uses your post-processor settings only. **A-axis rotation between setups** is written by this add-in from each setup's WCS orientation, so you do not need a 4-axis machine definition. Attach a machine only if you want **ATC slot assignment** in the Tools tab.
 4. Open **Batch Post**, select the NC Program and setups, configure output options, and click **Process**.
 
 ### NC Program and multi-tool setups
@@ -80,7 +80,7 @@ Use **Process** to run the add-in, or **Close** to exit without posting.
 
 #### G-code Options
 
-- **Rotate A-Axis between setups** — inject A-axis moves between setups (requires a machine with an A-axis)
+- **Rotate A-Axis between setups** — inject A-axis moves between setups from WCS orientation (no machine definition required)
 - **Retract Y on A-axis rotation** / **Y-retraction coordinate** — optional Y retract in G53 before rotating
 - **Restore rapid moves** — convert qualifying retract/traverse/plunge patterns from `G1` to `G0` (see below)
 - **Minimum rapid move distance (mm)** — ignore short links; raise this (e.g. 20–30) on facing toolpaths if every stepover is being restored
