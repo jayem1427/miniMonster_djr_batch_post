@@ -119,8 +119,16 @@ class Program():
 
     @property
     def fileExtension(self):
-        """Returns the file extension of the NCProgram."""
-        return self._program.postConfiguration.extension if self._program.postConfiguration else None
+        """Returns the file extension of the NCProgram, with a leading dot."""
+        from .gcode_helpers import normalize_nc_extension
+
+        param_ext = self.Parameters.Get(Parameters.EXTENSION)
+        if param_ext:
+            return normalize_nc_extension(param_ext)
+        cfg = self._program.postConfiguration
+        if cfg is not None and getattr(cfg, "extension", None):
+            return normalize_nc_extension(cfg.extension)
+        return ".nc"
 
     def Process(self, tmpPath: Path):
         """Generate the initial G-code files from the Fusion NCProgram using the Post Processor 
@@ -165,7 +173,7 @@ class Program():
                         raise PermissionError(f"Could not clear output folder item: {child}") from exc
             
             # Setting the base parameters for the output.
-            Setups.SetFileExtension(self._program.postConfiguration.extension)
+            Setups.SetFileExtension(self.fileExtension)
             if Settings(Settings.OPERATIONS_GROUPING) == Settings.OperationsGroupings.SINGLE_FILE \
                 or Settings(Settings.FLAT_FILE_STRUCTURE) \
                 or (Settings(Settings.NUMERIC_NAME) \

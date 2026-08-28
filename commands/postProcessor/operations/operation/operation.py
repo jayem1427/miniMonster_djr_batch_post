@@ -118,6 +118,7 @@ class Operation(OperationParser, OperationHeader, OperationBody, OperationTail):
 
     def Parse(self, tmpPath: Path):
         from ...programs import Programs
+        from ...gcode_helpers import find_posted_output, snapshot_files, wait_for_post_output
 
         name = uuid.uuid4().hex + Programs.Current.fileExtension
         self._tempFilePath = tmpPath / name
@@ -125,6 +126,7 @@ class Operation(OperationParser, OperationHeader, OperationBody, OperationTail):
         Programs.Current.SetOutputFolder(self._tempFilePath.parent)
         Programs.Current.Parameters.Set(Parameters.FILE_NAME, self._tempFilePath.stem)
         Programs.Current.Parameters.Set(Parameters.NAME, self._tempFilePath.stem)
+        before = snapshot_files(tmpPath)
         if not Programs.Current.PostProcess(list(self._operationsDict.values())):
             raise Exception(f"Operation {self.name} post processing failed.")
         
@@ -133,8 +135,23 @@ class Operation(OperationParser, OperationHeader, OperationBody, OperationTail):
         # Allow a few more loops than POST_RETRIES so short delays still
         # cover slow Fusion file flushes (historically ~5.5s with delay=0.1).
         maxLoops = max(retries * 3, 10)
-        from ...gcode_helpers import wait_for_post_output
+        posted = find_posted_output(self._tempFilePath, before=before)
+        if posted is not None:
+            self._tempFilePath = posted
         if not wait_for_post_output(self._tempFilePath, delay=delay, max_loops=maxLoops):
-            raise Exception(f"Operation {self.name} post processing failed: output file was not created.")
+            posted = find_posted_output(self._tempFilePath, before=before)
+            if posted is not None:
+                self._tempFilePath = posted
+            if not wait_for_post_output(self._tempFilePath, delay=delay, max_loops=max(2, maxLoops // 3)):
+                found = sorted(p.name for p in snapshot_files(tmpPath))
+                detail = f"looked for {self._tempFilePath.name}"
+                if found:
+                    detail += "; folder contains: " + ", ".join(found[:8])
+                else:
+                    detail += "; output folder is empty"
+                raise Exception(
+                    f"Operation {self.name} post processing failed: output file was not created ({detail}). "
+                    "If the post-processor reported an error, check Fusion's Text Commands window."
+                )
 
         self._parseFile(self._tempFilePath)

@@ -1,9 +1,12 @@
 from pathlib import Path
 
 from commands.postProcessor.gcode_helpers import (
+    find_posted_output,
     force_rapid_start_line,
     is_tail_gap_line,
     line_matches_end_codes,
+    normalize_nc_extension,
+    snapshot_files,
     strip_feed_words,
     update_trailing_end_sequence,
     wait_for_post_output,
@@ -121,3 +124,54 @@ def test_wait_for_post_output_stable(tmp_path: Path):
     path = tmp_path / "out.ngc"
     path.write_text("%\n" + ("G1 X0\n" * 20) + "M30\n%\n", encoding="utf-8")
     assert wait_for_post_output(path, delay=0.01, max_loops=5, stable_reads=2, min_bytes=16)
+
+
+def test_wait_for_post_output_accepts_millenniumos_end(tmp_path: Path):
+    """
+    Historical bug: wait required an M30 substring. MillenniumOS ends with
+    M5.9 / M0, so Adaptive3 was posted then reported as 'file was not created'.
+    """
+    path = tmp_path / "adaptive3.gcode"
+    body = (
+        "(Begin Operation: Adaptive3)\n"
+        "G0 X0 Y0\n"
+        "G0 Z15\n"
+        "G1 F400 Z-0.75\n"
+        "G1 X10 Y0\n"
+        "(Park)\n"
+        "G27\n"
+        "(Double-check spindle is stopped!)\n"
+        "M5.9\n"
+    )
+    path.write_text(body, encoding="utf-8")
+    assert wait_for_post_output(path, delay=0.01, max_loops=5, stable_reads=2, min_bytes=16)
+
+
+def test_wait_for_post_output_accepts_m0_without_m30(tmp_path: Path):
+    path = tmp_path / "job.nc"
+    path.write_text("(End Job)\n" + ("G1 X1\n" * 10) + "M0\n", encoding="utf-8")
+    assert wait_for_post_output(path, delay=0.01, max_loops=5, stable_reads=2, min_bytes=16)
+
+
+def test_normalize_nc_extension_adds_dot():
+    assert normalize_nc_extension("gcode") == ".gcode"
+    assert normalize_nc_extension(".nc") == ".nc"
+    assert normalize_nc_extension(None) == ".nc"
+    assert normalize_nc_extension("") == ".nc"
+
+
+def test_find_posted_output_uses_actual_extension(tmp_path: Path):
+    expected = tmp_path / "abc123.nc"
+    actual = tmp_path / "abc123.gcode"
+    actual.write_text("G0 X0\nM0\n", encoding="utf-8")
+    found = find_posted_output(expected, before=set())
+    assert found == actual
+
+
+def test_find_posted_output_picks_new_file(tmp_path: Path):
+    before = snapshot_files(tmp_path)
+    expected = tmp_path / "missing.nc"
+    written = tmp_path / "NCProgram2.gcode"
+    written.write_text("G0 X0\nM5.9\n", encoding="utf-8")
+    found = find_posted_output(expected, before=before)
+    assert found == written

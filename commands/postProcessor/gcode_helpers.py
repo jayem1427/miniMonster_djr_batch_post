@@ -204,6 +204,53 @@ def coalesce_min_distance(value, default: float = 20.0) -> float:
     return numeric if numeric != 0 else float(default)
 
 
+def normalize_nc_extension(ext: str | None) -> str:
+    """Return a leading-dot extension, defaulting to ``.nc``."""
+    text = str(ext or "").strip()
+    if not text:
+        return ".nc"
+    return text if text.startswith(".") else f".{text}"
+
+
+def snapshot_files(folder: Path) -> set[Path]:
+    """File paths currently in ``folder`` (empty set if it does not exist)."""
+    try:
+        return {p for p in folder.iterdir() if p.is_file()}
+    except OSError:
+        return set()
+
+
+def find_posted_output(expected: Path, *, before: set[Path] | None = None) -> Path | None:
+    """
+    Locate the file Fusion actually wrote.
+
+    Fusion may use ``nc_program_nc_extension`` instead of the CPS extension,
+    omit a leading dot, or ignore the uuid filename we requested.
+    """
+    if expected.exists() and expected.is_file() and expected.stat().st_size > 0:
+        return expected
+
+    folder = expected.parent
+    try:
+        files = [p for p in folder.iterdir() if p.is_file()]
+    except OSError:
+        return None
+
+    stem_matches = [p for p in files if p.stem == expected.stem and p.stat().st_size > 0]
+    if len(stem_matches) == 1:
+        return stem_matches[0]
+    if stem_matches:
+        return max(stem_matches, key=lambda p: p.stat().st_mtime)
+
+    if before is not None:
+        new_files = [p for p in files if p not in before and p.stat().st_size > 0]
+        if len(new_files) == 1:
+            return new_files[0]
+        if new_files:
+            return max(new_files, key=lambda p: p.stat().st_mtime)
+    return None
+
+
 def wait_for_post_output(
     path: Path,
     *,
@@ -211,7 +258,7 @@ def wait_for_post_output(
     max_loops: int = 10,
     stable_reads: int = 3,
     min_bytes: int = 32,
-    require_end_marker: str = "M30",
+    require_end_marker: str | None = None,
 ) -> bool:
     """
     Wait until Fusion finishes writing a post-processor output file.
@@ -222,9 +269,10 @@ def wait_for_post_output(
     parse sees the completed file — so restore-rapids appears "on" but
     never rewrites any moves.
 
-    When ``require_end_marker`` is set, the file must also contain that
-    token (default ``M30``) so a stable mid-write header is not treated
-    as complete.
+    Completion is a stable size of at least ``min_bytes``. Do not require
+    ``M30``: MillenniumOS and other posts end with ``M0`` / ``M5.9`` / ``%``
+    and would otherwise be reported as "output file was not created".
+    ``require_end_marker`` is kept for callers that still want that check.
     """
     loops = 0
     last_size = -1
