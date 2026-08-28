@@ -20,12 +20,27 @@ def are_process_inputs_valid(
     Decide whether the Process / OK button should be enabled.
 
     Machine configuration is optional. A-axis injection is done by this
-    add-in, so a missing machine A-axis must not disable Process. The
-    execute handler already warns before posting.
+    add-in from setup WCS orientation, so a missing machine A-axis must
+    not disable Process.
     """
     # Kept in the signature because the dialog still reports these.
     _ = (rotate_a_axis_enabled, machine_has_a_axis, a_axis_rotation_required)
     return bool(has_program and can_process and has_selected_setups and selected_setups_ok)
+
+
+def should_warn_machine_lacks_a_axis(
+    *,
+    has_machine: bool,
+    machine_has_a_axis: bool,
+    a_axis_rotation_required: bool,
+) -> bool:
+    """
+    Warn only when an attached Fusion machine cannot rotate A.
+
+    No machine is fine: indexed A moves are written by this add-in, not
+    by Fusion kinematics. Skip the Process-time scare dialog in that case.
+    """
+    return bool(has_machine and not machine_has_a_axis and a_axis_rotation_required)
 
 
 def is_setup_row_selectable(*, valid_program: bool) -> bool:

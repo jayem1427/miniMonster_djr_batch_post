@@ -17,6 +17,7 @@ from .. import config
 
 from .layout.layout import PostDialogLayout
 from .event_registry import EventRegistry
+from ..validation_helpers import should_warn_machine_lacks_a_axis
 
 class PostDialog(PostDialogLayout):
 
@@ -198,27 +199,27 @@ class PostDialog(PostDialogLayout):
                 return
 
 
-        if not Programs.Current.machineHasAAxis:
-            needAAxisRotation, setups = Setups.AAxisRotationRequired()
-            if needAAxisRotation:
-                Utils.log(f'PostDialog: Machine {Programs.Current.machineName} does not support A axis but setups {setups} require A axis rotation.', adsk.core.LogLevels.WarningLogLevel)
-                msg = '<i><u>Warning:</u></i><p>'
-                if Programs.Current.hasMachine:
-                    msg += f"The selected machine '{Programs.Current.machineName}' does not support A axis rotation, but the following setups require A axis rotation:<p>"
-                else:
-                    msg += "No machine configuration is attached to the NC Program, but the following setups require A axis rotation:<p>"
-                for setupName, angle in setups:
-                    msg += f"{setupName} ({angle}°)<p>"
-                msg += "Using 4th axis rotation while the machine doesn't support it may result in unexpected results, including damage to property and person.<p>"
-                msg += "Do NOT use the result from this plug-in unless you have personally verified that the result can be used.<p>" 
-                res = ui.messageBox(msg,
-                "WARNING! Do not proceed!", 
-                adsk.core.MessageBoxButtonTypes.OKCancelButtonType,
-                adsk.core.MessageBoxIconTypes.CriticalIconType)
-            
-                if res != adsk.core.DialogResults.DialogOK:
-                    Utils.log('PostDialog: User cancelled operation due to unsupported A axis rotation.', adsk.core.LogLevels.InfoLogLevel)
-                    return
+        needAAxisRotation, setups = Setups.AAxisRotationRequired()
+        if should_warn_machine_lacks_a_axis(
+            has_machine=Programs.Current.hasMachine,
+            machine_has_a_axis=Programs.Current.machineHasAAxis,
+            a_axis_rotation_required=needAAxisRotation,
+        ):
+            Utils.log(f'PostDialog: Machine {Programs.Current.machineName} does not support A axis but setups {setups} require A axis rotation.', adsk.core.LogLevels.WarningLogLevel)
+            msg = '<i><u>Warning:</u></i><p>'
+            msg += f"The selected machine '{Programs.Current.machineName}' does not support A axis rotation, but the following setups require A axis rotation:<p>"
+            for setupName, angle in setups:
+                msg += f"{setupName} ({angle}°)<p>"
+            msg += "Using 4th axis rotation while the machine doesn't support it may result in unexpected results, including damage to property and person.<p>"
+            msg += "Do NOT use the result from this plug-in unless you have personally verified that the result can be used.<p>" 
+            res = ui.messageBox(msg,
+            "WARNING! Do not proceed!", 
+            adsk.core.MessageBoxButtonTypes.OKCancelButtonType,
+            adsk.core.MessageBoxIconTypes.CriticalIconType)
+        
+            if res != adsk.core.DialogResults.DialogOK:
+                Utils.log('PostDialog: User cancelled operation due to unsupported A axis rotation.', adsk.core.LogLevels.InfoLogLevel)
+                return
 
         try:
             from .. import runtime_options

@@ -34,6 +34,7 @@ from batch_post.commands.postProcessor.validation_helpers import (  # noqa: E402
     are_process_inputs_valid,
     is_setup_row_selectable,
     select_single_file_tail_setup,
+    should_warn_machine_lacks_a_axis,
     unc_output_folder_value,
 )
 
@@ -223,6 +224,38 @@ class TestProcessInputValidation:
             has_selected_setups=True,
             selected_setups_ok=True,
             rotate_a_axis_enabled=False,
+            machine_has_a_axis=False,
+            a_axis_rotation_required=False,
+        )
+
+
+class TestWarnMachineLacksAAxis:
+    def test_no_machine_does_not_warn(self):
+        # Historical bug: Process warned (and felt blocked) whenever
+        # setups needed A rotation but the NC Program had no machine.
+        assert not should_warn_machine_lacks_a_axis(
+            has_machine=False,
+            machine_has_a_axis=False,
+            a_axis_rotation_required=True,
+        )
+
+    def test_warns_when_attached_machine_has_no_a_axis(self):
+        assert should_warn_machine_lacks_a_axis(
+            has_machine=True,
+            machine_has_a_axis=False,
+            a_axis_rotation_required=True,
+        )
+
+    def test_no_warn_when_machine_has_a_axis(self):
+        assert not should_warn_machine_lacks_a_axis(
+            has_machine=True,
+            machine_has_a_axis=True,
+            a_axis_rotation_required=True,
+        )
+
+    def test_no_warn_when_rotation_not_required(self):
+        assert not should_warn_machine_lacks_a_axis(
+            has_machine=True,
             machine_has_a_axis=False,
             a_axis_rotation_required=False,
         )

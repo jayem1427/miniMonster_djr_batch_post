@@ -5,7 +5,7 @@
 	"description":	{
 		"":	"Batch post-process Fusion CAM operations into one or more G-code files. Works with any post-processor; useful on Fusion Personal for multi-tool programs."
 	},
-	"version":	"0.9.1",
+	"version":	"0.9.2",
 	"runOnStartup":	false,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true,

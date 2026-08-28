@@ -6,10 +6,13 @@ from ...gcode_helpers import (
     coalesce_min_distance,
     filter_merged_source_line,
     force_rapid_start_line,
+    format_a_axis_rotation_block,
     format_comment,
+    should_inject_synthetic_a_axis,
     strip_feed_words,
 )
 from ...line import Line
+from ...settings.settings import Settings
 from .rapidsParser import RapidsParser
 
 class OperationBody(Line):
@@ -36,6 +39,10 @@ class OperationBody(Line):
 
     def WriteBody(self, fileHandler: TextIO, rotationAngle: Optional[float] = None, preserveRotation: Optional[bool] = False):
         self._refreshRapidsAnalysis()
+        inject_a_axis = should_inject_synthetic_a_axis(
+            has_native_rotation=self._rotationLine != -1,
+            rotation_angle=rotationAngle,
+        )
         with self._tempFilePath.open(FileModes.READ) as operationFile:
             line = operationFile.readline()
             row = 0
@@ -60,6 +67,14 @@ class OperationBody(Line):
                                 self._lineNumber,
                             )
                             wroteRapidsStatus = True
+                        # Posts without a 4-axis machine omit G0 A0; insert A here.
+                        if inject_a_axis and rotationAngle is not None:
+                            self._writeRotationBlock(
+                                fileHandler,
+                                rotationAngle,
+                                include_retract=not preserveRotation,
+                            )
+                            inject_a_axis = False
                     if row + 1 in self._rapidsAnalysis: # Add rapids comments if this line is the start of a rapid move
                         rapidsEnds = self._rapidsAnalysis[row + 1]
                         self._lineNumber = self._write(fileHandler, force_rapid_start_line(line), self._lineNumber)
@@ -108,17 +123,20 @@ class OperationBody(Line):
                         return True if row != self._rotationLine else self._handleRotation(fileHandler, rotationAngle, preserveRotation)
         return False
 
+    def _writeRotationBlock(self, fileHandler: TextIO, rotationAngle: float, *, include_retract: bool) -> None:
+        for block_line in format_a_axis_rotation_block(
+            rotationAngle,
+            retract_y=bool(Settings(Settings.SAFE_Y_RETRACTION)),
+            y_coordinate=Settings(Settings.Y_RETRACTION_COORDINATE),
+            include_retract=include_retract,
+        ):
+            self._lineNumber = self._writeLine(fileHandler, block_line, self._lineNumber)
+
     def _handleRotation(self, fileHandler: TextIO, rotationAngle: Optional[float], preserveRotation: Optional[bool] = False) -> bool:
         if preserveRotation: # This is the first setup, so we want it to rotate to 0, so we keep the rotation line as is
             return False
         elif rotationAngle is None: # No rotation provided, ignore the line as it will rotate to 0 which we don't want.
             return True
         else: # Write our own rotation code based on the provided rotation angle
-            self._lineNumber = self._writeLine(fileHandler, format_comment("Rotating A-axis between setups"), self._lineNumber)
-            # Using G53 for absolute machine coordinates for safe retraction
-            if Settings(Settings.SAFE_Y_RETRACTION):
-                self._lineNumber = self._writeLine(fileHandler, "G90 G53 G0 Z-3 Y{yRetraction}".format(yRetraction = Settings(Settings.Y_RETRACTION_COORDINATE)), self._lineNumber)
-            else:
-                self._lineNumber = self._writeLine(fileHandler, "G90 G53 G0 Z-3", self._lineNumber)
-            self._lineNumber = self._writeLine(fileHandler, "G90 G54 G0 A{angle}".format(angle = f"{rotationAngle:.3f}".rstrip("0").rstrip(".")), self._lineNumber)
+            self._writeRotationBlock(fileHandler, rotationAngle, include_retract=True)
             return True
